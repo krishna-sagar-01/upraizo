@@ -47,7 +47,7 @@ services:
 
   # ── PgBouncer (Connection Pooler) ───────────────────────────
   pgbouncer:
-    image: edoburu/pgbouncer:latest
+    image: edoburu/pgbouncer:v1.25.1-p0
     container_name: upraizo-pgbouncer-prod
     restart: always
     depends_on:
