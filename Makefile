@@ -23,7 +23,7 @@ NAME          ?=
 TIMESTAMP     ?=
 COMPOSE_DEV   = docker compose -f db/docker/dev/docker-compose.yaml
 COMPOSE_PROD  = docker compose -f db/docker/prod/docker-compose.yaml
-COMPOSE_SRV   = docker compose -f server/docker-compose.prod.yml
+COMPOSE_SRV   = docker compose -f server/docker-compose.prod.yml --env-file server/.env.prod
 
 # ══════════════════════════════════════════════════════════════
 # HELP
