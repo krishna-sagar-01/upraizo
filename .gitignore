@@ -1,1 +1,94 @@
+# -----------------------------
+# OS FILES
+# -----------------------------
+.DS_Store
+Thumbs.db
+
+# -----------------------------
+# ENV FILES
+# -----------------------------
+.env
+.env.*
+*.env
+*/.env
+*/.env.*
+.env.local
+.env.production
+.env.staging
+!.env.example
+
+# -----------------------------
+# GO BUILD FILES
+# -----------------------------
+bin/
+*.exe
+*.out
+*.test
+*.prof
+
+# -----------------------------
+# DOCKER
+# -----------------------------
+docker-data/
+docker-volume/
+pgdata/
+postgres-data/
+docker-compose.override.yml
+*.pid
+
+# -----------------------------
+# LOGS
+# -----------------------------
+logs/
+**/logs/
+*.log
+*.log.*
+
+# -----------------------------
+# CACHE
+# -----------------------------
+.cache/
+**/.cache/
+coverage/
+coverage-final.json
+
+# -----------------------------
+# EDITOR
+# -----------------------------
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+
+# -----------------------------
+# ARCHIVES
+# -----------------------------
+*.tar
+*.tgz
+*.zip
+
+# -----------------------------
+# SERVER
+# -----------------------------
+ssl/
+
+# -----------------------------
+# NODE
+# -----------------------------
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 pnpm-lock.yaml
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+bun.lock
+.astro/
+server/server_bin/

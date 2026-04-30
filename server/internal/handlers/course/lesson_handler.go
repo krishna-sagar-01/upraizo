@@ -1,0 +1,270 @@
+package handler
+
+import (
+	"net/http"
+	"strconv"
+	"server/internal/dto"
+	service "server/internal/services/course"
+	"server/internal/utils"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
+)
+
+type LessonHandler struct {
+	svc *service.LessonService
+}
+
+func NewLessonHandler(svc *service.LessonService) *LessonHandler {
+	return &LessonHandler{svc: svc}
+}
+
+// ───────────────── LESSON CRUD ─────────────────
+
+func (h *LessonHandler) Create(c *fiber.Ctx) error {
+	var req dto.CreateLessonRequest
+	if err := c.BodyParser(&req); err != nil {
+		return utils.BadRequest("Invalid request body")
+	}
+
+	if err := utils.ValidateStruct(&req); err != nil {
+		return err
+	}
+
+	res, err := h.svc.Create(c.Context(), req)
+	if err != nil {
+		return err
+	}
+
+	return c.Status(http.StatusCreated).JSON(fiber.Map{
+		"success": true,
+		"data":    res,
+	})
+}
+
+func (h *LessonHandler) GetByID(c *fiber.Ctx) error {
+	idStr := c.Params("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return utils.BadRequest("Invalid lesson ID")
+	}
+
+	res, err := h.svc.GetByID(c.Context(), id)
+	if err != nil {
+		return err
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"data":    res,
+	})
+}
+
+func (h *LessonHandler) ListByModule(c *fiber.Ctx) error {
+	moduleIDStr := c.Params("moduleId")
+	moduleID, err := uuid.Parse(moduleIDStr)
+	if err != nil {
+		return utils.BadRequest("Invalid module ID")
+	}
+
+	res, err := h.svc.ListByModule(c.Context(), moduleID)
+	if err != nil {
+		return err
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"data":    res,
+	})
+}
+
+func (h *LessonHandler) Update(c *fiber.Ctx) error {
+	idStr := c.Params("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return utils.BadRequest("Invalid lesson ID")
+	}
+
+	var req dto.UpdateLessonRequest
+	if err := c.BodyParser(&req); err != nil {
+		return utils.BadRequest("Invalid request body")
+	}
+
+	if err := utils.ValidateStruct(&req); err != nil {
+		return err
+	}
+
+	res, err := h.svc.Update(c.Context(), id, req)
+	if err != nil {
+		return err
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"data":    res,
+	})
+}
+
+func (h *LessonHandler) Delete(c *fiber.Ctx) error {
+	idStr := c.Params("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return utils.BadRequest("Invalid lesson ID")
+	}
+
+	if err := h.svc.Delete(c.Context(), id); err != nil {
+		return err
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Lesson deleted successfully",
+	})
+}
+
+// ───────────────── VIDEO & ATTACHMENTS ─────────────────
+
+func (h *LessonHandler) UploadVideo(c *fiber.Ctx) error {
+	idStr := c.Params("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return utils.BadRequest("Invalid lesson ID")
+	}
+
+	file, err := c.FormFile("video")
+	if err != nil {
+		return utils.BadRequest("Video file is required")
+	}
+
+	fh, err := file.Open()
+	if err != nil {
+		return utils.Internal(err)
+	}
+	defer fh.Close()
+
+	duration := 0
+	if dStr := c.FormValue("duration"); dStr != "" {
+		if d, err := strconv.Atoi(dStr); err == nil {
+			duration = d
+		}
+	}
+
+	if err := h.svc.UploadVideo(c.Context(), id, fh, file.Filename, file.Header.Get("Content-Type"), duration); err != nil {
+		return err
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Video uploaded successfully",
+	})
+}
+
+func (h *LessonHandler) GetVideoUploadURL(c *fiber.Ctx) error {
+	idStr := c.Params("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return utils.BadRequest("Invalid lesson ID")
+	}
+
+	filename := c.Query("filename")
+	if filename == "" {
+		return utils.BadRequest("filename query parameter is required")
+	}
+
+	contentType := c.Query("contentType", "video/mp4")
+
+	url, key, err := h.svc.GetVideoUploadURL(c.Context(), id, filename, contentType)
+	if err != nil {
+		return err
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"data": fiber.Map{
+			"url": url,
+			"key": key,
+		},
+	})
+}
+
+func (h *LessonHandler) CompleteVideoUpload(c *fiber.Ctx) error {
+	idStr := c.Params("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return utils.BadRequest("Invalid lesson ID")
+	}
+
+	var req struct {
+		VideoKey string `json:"videoKey"`
+		Duration int    `json:"duration"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return utils.BadRequest("Invalid request body")
+	}
+
+	if req.VideoKey == "" {
+		return utils.BadRequest("videoKey is required")
+	}
+
+	if err := h.svc.CompleteVideoUpload(c.Context(), id, req.VideoKey, req.Duration); err != nil {
+		return err
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Video upload completed successfully",
+	})
+}
+
+
+func (h *LessonHandler) AddAttachment(c *fiber.Ctx) error {
+	idStr := c.Params("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return utils.BadRequest("Invalid lesson ID")
+	}
+
+	title := c.FormValue("title")
+	if title == "" {
+		return utils.BadRequest("Attachment title is required")
+	}
+
+	file, err := c.FormFile("file")
+	if err != nil {
+		return utils.BadRequest("File is required")
+	}
+
+	fh, err := file.Open()
+	if err != nil {
+		return utils.Internal(err)
+	}
+	defer fh.Close()
+
+	res, err := h.svc.AddAttachment(c.Context(), id, title, fh, file.Filename, file.Header.Get("Content-Type"), file.Size)
+	if err != nil {
+		return err
+	}
+
+	return c.Status(http.StatusCreated).JSON(fiber.Map{
+		"success": true,
+		"data":    res,
+	})
+}
+
+func (h *LessonHandler) DeleteAttachment(c *fiber.Ctx) error {
+	idStr := c.Params("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return utils.BadRequest("Invalid attachment ID")
+	}
+
+	if err := h.svc.DeleteAttachment(c.Context(), id); err != nil {
+		return err
+	}
+
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Attachment deleted successfully",
+	})
+}

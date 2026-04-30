@@ -1,0 +1,132 @@
+# ==============================================================
+# Upraizo Database — Prod Docker Compose
+# ==============================================================
+# VM: Hetzner CAX11 (2 vCPU ARM64, 4GB RAM, 40GB NVMe)
+# ==============================================================
+# PREREQUISITE: docker network create upraizo_shared
+# ==============================================================
+
+services:
+  # ── PostgreSQL ──────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: upraizo-db-prod
+    restart: always
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - upraizo_prod_data:/var/lib/postgresql/data
+      - ../postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ../pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+    command: >
+      postgres
+        -c config_file=/etc/postgresql/postgresql.conf
+        -c hba_file=/etc/postgresql/pg_hba.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    shm_size: 256mb
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+          cpus: "1.0"
+        reservations:
+          memory: 2G
+          cpus: "0.5"
+    networks:
+      - db_internal
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    # NO ports exposed — only PgBouncer can reach PG
+
+  # ── PgBouncer (Connection Pooler) ───────────────────────────
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: upraizo-pgbouncer-prod
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      LISTEN_PORT: 6432
+      MAX_CLIENT_CONN: ${PGBOUNCER_MAX_CLIENT_CONN:-500}
+      DEFAULT_POOL_SIZE: ${PGBOUNCER_DEFAULT_POOL_SIZE:-30}
+      MIN_POOL_SIZE: 5
+      RESERVE_POOL_SIZE: 5
+      POOL_MODE: transaction
+      AUTH_TYPE: scram-sha-256
+      IGNORE_STARTUP_PARAMETERS: extra_float_digits
+      SERVER_TLS_SSLMODE: prefer
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.20"
+        reservations:
+          memory: 64M
+          cpus: "0.10"
+    networks:
+      - db_internal
+      - upraizo_shared
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # NO ports exposed — server connects via upraizo_shared network
+
+  # ── Migration Runner (on-demand) ────────────────────────────
+  migrate:
+    image: migrate/migrate:v4.17.0
+    container_name: upraizo-migrate-prod
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ../../migrations:/migrations:ro
+    command: >
+      -path=/migrations
+      -database=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
+      up
+    networks:
+      - db_internal
+    profiles:
+      - migrate
+
+# ── Volumes ───────────────────────────────────────────────────
+volumes:
+  upraizo_prod_data:
+    name: upraizo_prod_data
+
+# ── Networks ──────────────────────────────────────────────────
+networks:
+  # PG ↔ PgBouncer ↔ WAL-G (fully isolated, NO internet)
+  db_internal:
+    name: upraizo_db_internal
+    driver: bridge
+    internal: true
+
+  # PgBouncer ↔ Server (cross-compose, created manually)
+  upraizo_shared:
+    name: upraizo_shared
+    external: true

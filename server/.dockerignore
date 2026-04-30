@@ -1,0 +1,10 @@
+.env
+.env.*
+server_bin
+storage/
+nginx/
+*.md
+docker-compose*.yml
+Dockerfile
+.git
+.gitignore
