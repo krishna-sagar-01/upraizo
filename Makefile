@@ -93,6 +93,10 @@ admin-create: ## Create initial admin user (SQL based)
 	@chmod +x ./db/scripts/create_admin.sh
 	./db/scripts/create_admin.sh
 
+demo-user: ## Create dummy user (demo@upraizo.com / demo@123)
+	@chmod +x ./db/scripts/create_demo_user.sh
+	./db/scripts/create_demo_user.sh
+
 # ══════════════════════════════════════════════════════════════
 # SETUP & HEALTH
 # ══════════════════════════════════════════════════════════════
