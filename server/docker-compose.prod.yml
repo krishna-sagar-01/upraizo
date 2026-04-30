@@ -83,7 +83,6 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-upraizo_mq}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
       RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-/}
-      RABBITMQ_VM_MEMORY_HIGH_WATERMARK: "0.7"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq/
     # Management UI — SSH tunnel only (127.0.0.1)
