@@ -2,7 +2,7 @@
 # Upraizo Server — Production Docker Compose
 # ==============================================================
 # Services: Nginx, Go Server, RabbitMQ, Redis
-# VM: Hetzner CAX11 (2 vCPU ARM64, 4GB RAM, 40GB NVMe)
+# VM: GCP N2-standard-2 (2 vCPU, 8GB RAM, SSD)
 # ==============================================================
 # PREREQUISITE: docker network create upraizo_shared
 # ==============================================================
@@ -26,7 +26,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.20"
+          cpus: "0.10"
           memory: 128M
         reservations:
           cpus: "0.05"
@@ -57,16 +57,16 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    env_file: .env
+    env_file: .env.prod
     volumes:
       - server_tmp:/app/storage/tmp
     deploy:
       resources:
         limits:
-          cpus: "1.50"
+          cpus: "1.00"
           memory: 2G
         reservations:
-          cpus: "0.50"
+          cpus: "0.40"
           memory: 512M
     networks:
       - backend_web
@@ -98,10 +98,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.80"
+          cpus: "0.40"
           memory: 1G
         reservations:
-          cpus: "0.20"
+          cpus: "0.10"
           memory: 256M
     networks:
       - backend_internal
@@ -137,10 +137,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.50"
+          cpus: "0.20"
           memory: 512M
         reservations:
-          cpus: "0.10"
+          cpus: "0.05"
           memory: 128M
     networks:
       - backend_internal

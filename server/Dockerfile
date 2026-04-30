@@ -2,7 +2,7 @@
 # Upraizo Server — Production Dockerfile
 # ==============================================================
 # Multi-stage build: ~20MB final image
-# Builds natively on ARM64 (Hetzner CAX11)
+# Builds natively on x86_64 (GCP N2)
 # ==============================================================
 
 # ── Stage 1: Build ────────────────────────────────────────────
@@ -26,7 +26,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 # ── Stage 2: Runtime ─────────────────────────────────────────
 FROM alpine:3.20
 
-RUN apk --no-cache add ca-certificates tzdata ffmpeg \
+RUN apk --no-cache add ca-certificates tzdata \
     && cp /usr/share/zoneinfo/Asia/Kolkata /etc/localtime \
     && echo "Asia/Kolkata" > /etc/timezone
 

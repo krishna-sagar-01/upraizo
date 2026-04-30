@@ -1,7 +1,7 @@
 # ==============================================================
 # Upraizo Database — Prod Docker Compose
 # ==============================================================
-# VM: Hetzner CAX11 (2 vCPU ARM64, 4GB RAM, 40GB NVMe)
+# VM: GCP N2-standard-2 (2 vCPU, 8GB RAM, SSD)
 # ==============================================================
 # PREREQUISITE: docker network create upraizo_shared
 # ==============================================================
@@ -81,10 +81,10 @@ services:
       resources:
         limits:
           memory: 128M
-          cpus: "0.20"
+          cpus: "0.10"
         reservations:
           memory: 64M
-          cpus: "0.10"
+          cpus: "0.05"
     networks:
       - db_internal
       - upraizo_shared
