@@ -1,11 +1,6 @@
 # ==============================================================
 # Upraizo Server — Production Docker Compose
 # ==============================================================
-# Services: Nginx, Go Server, RabbitMQ, Redis
-# VM: GCP N2-standard-2 (2 vCPU, 8GB RAM, SSD)
-# ==============================================================
-# PREREQUISITE: docker network create upraizo_shared
-# ==============================================================
 
 services:
   # ── Nginx (Reverse Proxy + SSL) ─────────────────────────────
