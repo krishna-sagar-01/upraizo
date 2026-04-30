@@ -1,0 +1,210 @@
+---
+import Layout from "@layouts/Layout.astro";
+import { API_URL } from "@/lib/constants";
+
+export async function getStaticPaths() {
+  try {
+    const res = await fetch(`${API_URL}/courses`);
+    const json = await res.json();
+    const courses = json.data || json || [];
+    return courses.map((c: any) => ({
+      params: { slug: c.slug },
+    }));
+  } catch (error) {
+    console.error("Failed to fetch courses for getStaticPaths:", error);
+    return [];
+  }
+}
+
+const { slug } = Astro.params;
+
+// Fetch course data at Build Time (SEO friendly)
+let course: any = null;
+let curriculum: any[] = [];
+let error: string | null = null;
+
+try {
+  const detailRes = await fetch(`${API_URL}/courses/${slug}`);
+  if (!detailRes.ok) throw new Error('Course not found');
+  const detailData = await detailRes.json();
+  course = detailData.data || detailData;
+
+  const currRes = await fetch(`${API_URL}/courses/${slug}/curriculum`);
+  if (currRes.ok) {
+    const currData = await currRes.json();
+    const payload = currData.data || currData;
+    curriculum = Array.isArray(payload) ? payload : (payload.modules || []);
+  }
+} catch (err: any) {
+  error = err.message;
+}
+
+const title = course ? `${course.title} - Upraizo` : "Course Details - Upraizo";
+const description = course?.description?.substring(0, 160) || "Master this course and elevate your career.";
+const thumbnail = course?.thumbnail_url || 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1600&q=80';
+
+// Calculate total lessons
+let totalLessons = 0;
+curriculum.forEach((mod: any) => {
+  if (mod.lessons) totalLessons += mod.lessons.length;
+});
+
+// Validity Logic
+let validityText = 'Lifetime Access';
+if (course?.validity_days && course.validity_days < 30000) {
+  if (course.validity_days % 365 === 0) {
+    const years = course.validity_days / 365;
+    validityText = `${years} ${years === 1 ? 'Year' : 'Years'} Access`;
+  } else {
+    validityText = `${course.validity_days} Days Access`;
+  }
+}
+---
+
+<Layout title={title} description={description}>
+  <div class="min-h-screen pb-24">
+    {error || !course ? (
+      <div class="max-w-2xl mx-auto px-6 pt-48 text-center">
+        <div class="w-24 h-24 bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 rounded-full flex items-center justify-center mx-auto mb-8 border border-zinc-200 dark:border-zinc-800">
+          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+        </div>
+        <h3 class="text-3xl font-black text-zinc-900 dark:text-white mb-4">Course not found</h3>
+        <p class="text-zinc-600 dark:text-zinc-400 text-lg mb-10">{error || "The course you are looking for does not exist."}</p>
+        <a href="/courses" class="px-10 py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold rounded-2xl hover:scale-105 transition-transform inline-block">
+          Back to all courses
+        </a>
+      </div>
+    ) : (
+      <div class="max-w-6xl mx-auto pt-10 lg:pt-12">
+        <a href="/courses" class="inline-flex items-center gap-2 text-zinc-500 dark:text-zinc-400 font-bold mb-8 transition-colors hover:text-zinc-900 dark:hover:text-white">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          Back to Catalog
+        </a>
+
+        <div class="w-full h-[220px] md:h-[400px] lg:h-[550px] rounded-[3rem] lg:rounded-[4rem] overflow-hidden mb-12 border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900">
+          <img src={thumbnail} alt={course.title} class="w-full h-full object-cover" />
+        </div>
+
+        <div class="max-w-6xl mb-20 w-full min-w-0">
+          <span class="inline-block px-5 py-2 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white text-xs font-bold uppercase tracking-[0.2em] rounded-full mb-6">
+            {course.category || 'Masterclass'}
+          </span>
+          
+          <h1 class="text-4xl lg:text-6xl font-black text-zinc-900 dark:text-white mb-8 tracking-tight leading-[1.1] wrap-break-word w-full">
+            {course.title}
+          </h1>
+          
+          <div class="text-lg lg:text-xl text-zinc-600 dark:text-zinc-400 font-medium leading-relaxed w-full">
+            <div class="desc-content w-full">
+              <span class="short-desc line-clamp-3 wrap-break-word">{course.description}</span>
+              <span class="full-desc hidden wrap-break-word">{course.description}</span>
+            </div>
+            <button class="toggle-desc-btn text-red-500 font-bold text-sm uppercase tracking-wider mt-4 hover:underline cursor-pointer">
+              Read More
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-16 lg:gap-20">
+          <div class="lg:col-span-2 min-w-0">
+            <h2 class="text-3xl font-black text-zinc-900 dark:text-white mb-10 tracking-tight">Curriculum</h2>
+            {curriculum.length === 0 ? (
+              <p class="text-zinc-500 font-medium italic p-8 border border-zinc-200 dark:border-zinc-800 rounded-4xl text-center">Curriculum is being finalized. Please check back later.</p>
+            ) : (
+              curriculum.map((mod: any, index: number) => (
+                <div class="mb-8 bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 rounded-[2.5rem] p-6 md:p-8">
+                  <h4 class="lg:text-2xl text-xl font-black text-zinc-900 dark:text-white mb-6 flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full">
+                    <span class="shrink-0 text-zinc-500 dark:text-zinc-400 text-sm md:text-xl uppercase tracking-widest md:normal-case md:tracking-normal whitespace-nowrap">Module {index + 1}</span>
+                    <span class="hidden md:block shrink-0 w-1.5 h-1.5 bg-zinc-300 dark:bg-zinc-700 rounded-full"></span>
+                    <span class="flex-1 min-w-0 wrap-break-word">{mod.title}</span>
+                  </h4>
+                  <div class="space-y-3">
+                    {(mod.lessons || []).map((lesson: any) => (
+                      <div class="flex items-center justify-between p-4 md:p-5 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors rounded-2xl mb-3 gap-3">
+                        <div class="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
+                          <div class="w-10 h-10 shrink-0 rounded-full bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center text-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-800">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                          </div>
+                          <span class="font-bold text-zinc-900 dark:text-zinc-100 text-sm md:text-base wrap-break-word min-w-0">{lesson.title}</span>
+                        </div>
+                        <span class="shrink-0 text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-wider bg-zinc-100 dark:bg-zinc-900 px-2.5 md:px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800">Video</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div class="lg:col-span-1 min-w-0">
+            <div class="sticky top-10 p-6 lg:p-10 rounded-[3rem] bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+              <h3 class="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.2em] mb-4">Enrollment</h3>
+              
+              <div class="flex items-center flex-wrap mb-10 pb-8 border-b border-zinc-200 dark:border-zinc-800 gap-y-2">
+                <span class="text-4xl lg:text-5xl font-black text-zinc-900 dark:text-white tracking-tight break-all">
+                  {Number(course.price) === 0 ? 'Free' : `₹${course.price}`}
+                </span>
+                {course.original_price && (
+                  <span class="line-through text-zinc-400 text-xl ml-3 font-medium">₹{course.original_price}</span>
+                )}
+                {course.discount_label && (
+                  <span class="px-3 py-1 bg-red-500 text-white text-xs font-black uppercase tracking-wider rounded-lg ml-4">{course.discount_label}</span>
+                )}
+              </div>
+
+              <div class="space-y-5 mb-10">
+                <div class="flex items-center gap-4 text-sm lg:text-base text-zinc-700 dark:text-zinc-300 font-bold">
+                  <svg class="text-red-500 shrink-0" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span class="wrap-break-word min-w-0 flex-1">{totalLessons} Practical Lessons</span>
+                </div>
+                <div class="flex items-center gap-4 text-sm lg:text-base text-zinc-700 dark:text-zinc-300 font-bold">
+                  <svg class="text-red-500 shrink-0" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span class="wrap-break-word min-w-0 flex-1">{validityText}</span>
+                </div>
+                <div class="flex items-center gap-4 text-sm lg:text-base text-zinc-700 dark:text-zinc-300 font-bold">
+                  <svg class="text-red-500 shrink-0" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <span class="wrap-break-word min-w-0 flex-1">Master Mentor Guidance</span>
+                </div>
+              </div>
+
+              <a href="https://app.upraizo.com/auth/register" class="w-full py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-lg rounded-2xl hover:scale-105 active:scale-95 transition-transform duration-300 flex items-center justify-center gap-2">
+                Join Program
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              </a>
+              <p class="text-center text-[10px] lg:text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mt-6 flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                100% Secure Checkout
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+</Layout>
+
+<script>
+  // Added DOMContentLoaded to ensure elements are present before attaching listeners
+  document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('.toggle-desc-btn');
+      if (!btn) return;
+
+      const container = btn.parentElement;
+      if (!container) return;
+
+      const shortDesc = container.querySelector('.short-desc');
+      const fullDesc = container.querySelector('.full-desc');
+
+      if (fullDesc?.classList.contains('hidden')) {
+        fullDesc.classList.remove('hidden');
+        shortDesc?.classList.add('hidden');
+        btn.textContent = 'Hide Details';
+      } else {
+        fullDesc?.classList.add('hidden');
+        shortDesc?.classList.remove('hidden');
+        btn.textContent = 'Read More';
+      }
+    });
+  });
+</script>
